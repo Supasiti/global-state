@@ -1,4 +1,4 @@
-import makeStorePublisher from '..';
+import makeStore from '../store';
 
 interface TestStore {
   state: {
@@ -9,10 +9,10 @@ interface TestStore {
   };
 }
 
-describe('makeStorePublisher', () => {
+describe('makeStore', () => {
   describe('getStore', () => {
     it('will return without typing', () => {
-      const result = makeStorePublisher(() => ({
+      const result = makeStore(() => ({
         state: {
           counts: 2,
         },
@@ -23,7 +23,7 @@ describe('makeStorePublisher', () => {
     });
 
     it('will return an object with getState', () => {
-      const result = makeStorePublisher<TestStore>(() => ({
+      const result = makeStore<TestStore>(() => ({
         state: {
           counts: 2,
         },
@@ -37,7 +37,7 @@ describe('makeStorePublisher', () => {
     });
 
     it('will mutate counts, but keep the same action instance', () => {
-      const { getStore } = makeStorePublisher<TestStore>((set) => ({
+      const { getStore } = makeStore<TestStore>((set) => ({
         state: {
           counts: 2,
         },
@@ -64,7 +64,7 @@ describe('makeStorePublisher', () => {
     });
 
     it('will mutate counts by some number', () => {
-      const { getStore } = makeStorePublisher<TestStore>((set) => ({
+      const { getStore } = makeStore<TestStore>((set) => ({
         state: {
           counts: 2,
         },
@@ -85,7 +85,7 @@ describe('makeStorePublisher', () => {
     });
 
     it('will handle mutation that depends on previous state', () => {
-      const { getStore } = makeStorePublisher<TestStore>((set) => ({
+      const { getStore } = makeStore<TestStore>((set) => ({
         state: {
           counts: 2,
         },
@@ -115,7 +115,7 @@ describe('makeStorePublisher', () => {
           getCounts: () => number;
         };
       }
-      const { getStore } = makeStorePublisher<TestGet>((_set, get) => ({
+      const { getStore } = makeStore<TestGet>((_set, get) => ({
         state: {
           counts: 2,
         },
@@ -135,7 +135,7 @@ describe('makeStorePublisher', () => {
   describe('subscribe', () => {
     it('will handle subscribe', () => {
       const subscriber = jest.fn();
-      const publisher = makeStorePublisher<TestStore>((set) => ({
+      const publisher = makeStore<TestStore>((set) => ({
         state: {
           counts: 2,
         },
@@ -154,7 +154,7 @@ describe('makeStorePublisher', () => {
       const subscriber = jest.fn(
         (store: TestStore) => (outerCounts = store.state.counts),
       );
-      const { subscribe, getStore } = makeStorePublisher<TestStore>((set) => ({
+      const { subscribe, getStore } = makeStore<TestStore>((set) => ({
         state: {
           counts: 2,
         },
@@ -180,7 +180,7 @@ describe('makeStorePublisher', () => {
 
     it('will unsubscribe subcriber', () => {
       const subscriber = jest.fn();
-      const { subscribe, getStore } = makeStorePublisher<TestStore>((set) => ({
+      const { subscribe, getStore } = makeStore<TestStore>((set) => ({
         state: {
           counts: 2,
         },

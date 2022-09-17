@@ -1,4 +1,5 @@
 import isEqual from './isEqual';
+import { makePublicationHandler, Publisher } from './publisher';
 
 // templates
 export type StoreTemplate = {
@@ -22,25 +23,19 @@ export type StoreConfig<TStore extends StoreTemplate> = (
   get: GetStore<TStore>,
 ) => TStore;
 
-// publisher and subscriber
-export type StorePublisher<TStore extends object> = {
+// store
+export type Store<TStore extends object> = Publisher<TStore> & {
   getStore: GetStore<TStore>;
-  subscribe: (subscriber: StoreSubscriber<TStore>) => () => boolean;
 };
-
-export type StoreSubscriber<TStore extends object> = (
-  store: TStore,
-  prevState: TStore,
-) => void;
 
 //-------------
 // Implementation
 //
-const makeStorePublisher = <TStore extends StoreTemplate>(
+const makeStore = <TStore extends StoreTemplate>(
   config: StoreConfig<TStore>,
-): StorePublisher<TStore> => {
+): Store<TStore> => {
   let store: TStore;
-  const subcribers = new Set<StoreSubscriber<TStore>>();
+  const { subscribe, notify } = makePublicationHandler<TStore>();
 
   const setState: Mutate<StateOf<TStore>> = (
     partial: Selector<StateOf<TStore>>,
@@ -51,7 +46,7 @@ const makeStorePublisher = <TStore extends StoreTemplate>(
     const prevStore = store;
 
     if (!isEqual(newStore.state, prevStore.state)) {
-      subcribers.forEach((subcriber) => subcriber(newStore, prevStore));
+      notify(newStore, prevStore);
     }
 
     store = newStore;
@@ -59,13 +54,9 @@ const makeStorePublisher = <TStore extends StoreTemplate>(
 
   const getStore = () => store;
 
-  const subscribe = (subcriber: StoreSubscriber<TStore>) => {
-    subcribers.add(subcriber);
-    return () => subcribers.delete(subcriber);
-  };
-
   store = config(setState, getStore);
+
   return { getStore, subscribe };
 };
 
-export default makeStorePublisher;
+export default makeStore;
