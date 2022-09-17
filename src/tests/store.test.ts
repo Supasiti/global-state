@@ -178,6 +178,31 @@ describe('makeStore', () => {
       expect(outerCounts).toEqual(4);
     });
 
+    it('will call subcriber when state changed', () => {
+      let outerCounts = 0;
+      const subscriber = jest.fn(
+        (store: TestStore) => (outerCounts = store.state.counts),
+      );
+      const { subscribe, getStore } = makeStore<TestStore>((set) => ({
+        state: {
+          counts: 2,
+        },
+        actions: {
+          addCounts: () => {
+            set({ counts: 5 });
+          },
+        },
+      }));
+      subscribe(subscriber);
+
+      expect(getStore().state.counts).toEqual(2);
+
+      getStore().actions.addCounts();
+      expect(getStore().state.counts).toEqual(5);
+      expect(subscriber).toBeCalled();
+      expect(outerCounts).toEqual(5);
+    });
+
     it('will unsubscribe subcriber', () => {
       const subscriber = jest.fn();
       const { subscribe, getStore } = makeStore<TestStore>((set) => ({

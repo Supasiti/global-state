@@ -1,5 +1,5 @@
 export type Publisher<T> = {
-  subscribe: (subscriber: Subscriber<T>) => () => boolean;
+  subscribe: (subscriber: Subscriber<T>) => () => void;
 };
 
 export type Subscriber<T> = (next: T, prev: T) => void;

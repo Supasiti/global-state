@@ -9,11 +9,11 @@ export type StoreTemplate = {
 export type StateOf<TStore extends StoreTemplate> = TStore['state'];
 
 // selectors
-type SelectorFunc<T extends object> = (arg: T) => Partial<T>;
-export type Selector<T extends object> = Partial<T> | SelectorFunc<T>;
+type PartialStateFunc<T extends object> = (arg: T) => Partial<T>;
+export type PartialState<T extends object> = Partial<T> | PartialStateFunc<T>;
 
 // setter and getters
-export type Mutate<T extends object> = (partial: Selector<T>) => void;
+export type Mutate<T extends object> = (partial: PartialState<T>) => void;
 export type GetStore<T> = () => T;
 
 // store config
@@ -38,18 +38,17 @@ const makeStore = <TStore extends StoreTemplate>(
   const { subscribe, notify } = makePublicationHandler<TStore>();
 
   const setState: Mutate<StateOf<TStore>> = (
-    partial: Selector<StateOf<TStore>>,
+    partial: PartialState<StateOf<TStore>>,
   ) => {
     const partialState =
       typeof partial === 'function' ? partial(store.state) : partial;
     const newStore = { ...store, state: { ...store.state, ...partialState } };
-    const prevStore = store;
 
-    if (!isEqual(newStore.state, prevStore.state)) {
+    if (!isEqual(newStore.state, store.state)) {
+      const prevStore = store;
+      store = newStore; // need to set new state before notifying
       notify(newStore, prevStore);
     }
-
-    store = newStore;
   };
 
   const getStore = () => store;
