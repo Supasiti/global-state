@@ -1,55 +1,71 @@
 import isEqual from './isEqual';
 
-type SetPartialStateFunc<TState> = (prevState: TState) => Partial<TState>;
-type SetPartialState<TState> = Partial<TState> | SetPartialStateFunc<TState>;
+// templates
+export type StoreTemplate = {
+  state: object;
+  actions?: Record<string, (...params: any[]) => void>;
+};
+export type StateOf<TStore extends StoreTemplate> = TStore['state'];
 
-interface SetState<TState> {
-  (partial: SetPartialState<TState>): void;
-}
-interface GetState<TState> {
-  (): TState;
-}
-interface StorePublisher<TState extends object> {
-  getState: GetState<TState>;
-  subscribe: (subscriber: StoreSubscriber<TState>) => void;
-}
+// selectors
+type SelectorFunc<T extends object> = (arg: T) => Partial<T>;
+export type Selector<T extends object> = Partial<T> | SelectorFunc<T>;
 
-interface StoreConfig<TState> {
-  (set: SetState<TState>, get: GetState<TState>): TState;
-}
+// setter and getters
+export type Mutate<T extends object> = (partial: Selector<T>) => void;
+export type GetStore<T> = () => T;
 
-type StoreSubscriber<TState> = (state: TState, prevState: TState) => void;
+// store config
+// take  (set, get) => { state: T, actions: U }
+export type StoreConfig<TStore extends StoreTemplate> = (
+  set: Mutate<StateOf<TStore>>,
+  get: GetStore<TStore>,
+) => TStore;
 
-// take something like (set, get) => state
-// return {getState, subscribe, destroy}
-const makeStorePublisher = <T extends object>(
-  config: StoreConfig<T>,
-): StorePublisher<T> => {
-  let state: T;
-  const subcribers = new Set<StoreSubscriber<T>>();
+// publisher and subscriber
+export type StorePublisher<TStore extends object> = {
+  getStore: GetStore<TStore>;
+  subscribe: (subscriber: StoreSubscriber<TStore>) => () => boolean;
+};
 
-  const setState: SetState<T> = (partial: SetPartialState<T>) => {
+export type StoreSubscriber<TStore extends object> = (
+  store: TStore,
+  prevState: TStore,
+) => void;
+
+//-------------
+// Implementation
+//
+const makeStorePublisher = <TStore extends StoreTemplate>(
+  config: StoreConfig<TStore>,
+): StorePublisher<TStore> => {
+  let store: TStore;
+  const subcribers = new Set<StoreSubscriber<TStore>>();
+
+  const setState: Mutate<StateOf<TStore>> = (
+    partial: Selector<StateOf<TStore>>,
+  ) => {
     const partialState =
-      typeof partial === 'function' ? partial(state) : partial;
-    const newState = { ...state, ...partialState };
-    const prevState = state;
+      typeof partial === 'function' ? partial(store.state) : partial;
+    const newStore = { ...store, state: { ...store.state, ...partialState } };
+    const prevStore = store;
 
-    if (!isEqual(newState, prevState)) {
-      subcribers.forEach((subcriber) => subcriber(newState, prevState));
+    if (!isEqual(newStore.state, prevStore.state)) {
+      subcribers.forEach((subcriber) => subcriber(newStore, prevStore));
     }
 
-    state = newState;
+    store = newStore;
   };
 
-  const getState = () => state;
+  const getStore = () => store;
 
-  const subscribe = (subcriber: StoreSubscriber<T>) => {
+  const subscribe = (subcriber: StoreSubscriber<TStore>) => {
     subcribers.add(subcriber);
+    return () => subcribers.delete(subcriber);
   };
 
-  state = config(setState, getState);
-
-  return { getState, subscribe };
+  store = config(setState, getStore);
+  return { getStore, subscribe };
 };
 
 export default makeStorePublisher;

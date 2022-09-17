@@ -1,135 +1,208 @@
 import makeStorePublisher from '..';
 
-interface TestState {
-  counts: number;
-  addCounts: (by?: number) => void;
+interface TestStore {
+  state: {
+    counts: number;
+  };
+  actions: {
+    addCounts: (by?: number) => void;
+  };
 }
 
 describe('makeStorePublisher', () => {
-  describe('getState', () => {
-    it('should return without typing', () => {
+  describe('getStore', () => {
+    it('will return without typing', () => {
       const result = makeStorePublisher(() => ({
-        counts: 2,
+        state: {
+          counts: 2,
+        },
       }));
 
-      const state = result.getState();
+      const store = result.getStore();
+      expect(store.state.counts).toEqual(2);
+    });
+
+    it('will return an object with getState', () => {
+      const result = makeStorePublisher<TestStore>(() => ({
+        state: {
+          counts: 2,
+        },
+        actions: {
+          addCounts: () => {},
+        },
+      }));
+      const { state, actions } = result.getStore();
       expect(state.counts).toEqual(2);
+      expect(typeof actions.addCounts).toBe('function');
     });
 
-    it('should return an object with getState', () => {
-      const result = makeStorePublisher<TestState>(() => ({
-        counts: 2,
-        addCounts: () => {},
+    it('will mutate counts, but keep the same action instance', () => {
+      const { getStore } = makeStorePublisher<TestStore>((set) => ({
+        state: {
+          counts: 2,
+        },
+        actions: {
+          addCounts: () => {
+            set({ counts: 5 });
+          },
+        },
       }));
+      const {
+        state: originalState,
+        actions: { addCounts: prevAddCounts },
+      } = getStore();
+      expect(originalState.counts).toEqual(2);
 
-      const state = result.getState();
-      expect(state.counts).toEqual(2);
-      expect(typeof state.addCounts).toBe('function');
+      prevAddCounts();
+
+      const {
+        state: newState,
+        actions: { addCounts: newAddCounts },
+      } = getStore();
+      expect(newState.counts).toEqual(5);
+      expect(newAddCounts).toEqual(prevAddCounts);
     });
 
-    it('should mutate counts', () => {
-      const result = makeStorePublisher<TestState>((set) => ({
-        counts: 2,
-        addCounts: () => {
-          set({ counts: 5 });
+    it('will mutate counts by some number', () => {
+      const { getStore } = makeStorePublisher<TestStore>((set) => ({
+        state: {
+          counts: 2,
+        },
+        actions: {
+          addCounts: (by?: number) => {
+            set({ counts: by ?? 4 });
+          },
         },
       }));
 
-      expect(result.getState().counts).toEqual(2);
+      expect(getStore().state.counts).toEqual(2);
 
-      result.getState().addCounts();
-      expect(result.getState().counts).toEqual(5);
+      getStore().actions.addCounts();
+      expect(getStore().state.counts).toEqual(4);
+
+      getStore().actions.addCounts(6);
+      expect(getStore().state.counts).toEqual(6);
     });
 
-    it('should mutate counts by some number', () => {
-      const result = makeStorePublisher<TestState>((set) => ({
-        counts: 2,
-        addCounts: (by?: number) => {
-          set({ counts: by ?? 4 });
+    it('will handle mutation that depends on previous state', () => {
+      const { getStore } = makeStorePublisher<TestStore>((set) => ({
+        state: {
+          counts: 2,
+        },
+        actions: {
+          addCounts: (by?: number) => {
+            const toAdd = by ?? 4;
+            set((prev) => ({ counts: prev.counts + toAdd }));
+          },
         },
       }));
 
-      expect(result.getState().counts).toEqual(2);
+      expect(getStore().state.counts).toEqual(2);
 
-      result.getState().addCounts();
-      expect(result.getState().counts).toEqual(4);
+      getStore().actions.addCounts();
+      expect(getStore().state.counts).toEqual(6);
 
-      result.getState().addCounts(6);
-      expect(result.getState().counts).toEqual(6);
+      getStore().actions.addCounts(6);
+      expect(getStore().state.counts).toEqual(12);
     });
 
-    it('should handle mutation that depends on previous state', () => {
-      const result = makeStorePublisher<TestState>((set) => ({
-        counts: 2,
-        addCounts: (by?: number) => {
-          const toAdd = by ?? 4;
-          set((prev) => ({ counts: prev.counts + toAdd }));
-        },
-      }));
-
-      expect(result.getState().counts).toEqual(2);
-
-      result.getState().addCounts();
-      expect(result.getState().counts).toEqual(6);
-
-      result.getState().addCounts(6);
-      expect(result.getState().counts).toEqual(12);
-    });
-
-    it('should support get function', () => {
+    it('will support get function', () => {
       interface TestGet {
-        counts: number;
-        getCounts: () => number;
+        state: {
+          counts: number;
+        };
+        actions: {
+          getCounts: () => number;
+        };
       }
-      const result = makeStorePublisher<TestGet>((_set, get) => ({
-        counts: 2,
-        getCounts: () => get().counts + 3,
+      const { getStore } = makeStorePublisher<TestGet>((_set, get) => ({
+        state: {
+          counts: 2,
+        },
+        actions: {
+          getCounts: () => get().state.counts + 3,
+        },
       }));
 
-      expect(result.getState().counts).toEqual(2);
+      expect(getStore().state.counts).toEqual(2);
 
-      const newCounts = result.getState().getCounts();
+      const newCounts = getStore().actions.getCounts();
       expect(newCounts).toEqual(5);
-      expect(result.getState().counts).toEqual(2);
+      expect(getStore().state.counts).toEqual(2);
     });
   });
 
   describe('subscribe', () => {
-    it('should handle subscribe', () => {
+    it('will handle subscribe', () => {
       const subscriber = jest.fn();
-      const publisher = makeStorePublisher<TestState>((set) => ({
-        counts: 2,
-        addCounts: (by?: number) => {
-          const toAdd = by ?? 4;
-          set((prev) => ({ counts: prev.counts + toAdd }));
+      const publisher = makeStorePublisher<TestStore>((set) => ({
+        state: {
+          counts: 2,
+        },
+        actions: {
+          addCounts: (by?: number) => {
+            const toAdd = by ?? 4;
+            set((prev) => ({ counts: prev.counts + toAdd }));
+          },
         },
       }));
       publisher.subscribe(subscriber);
     });
 
-    it('should call subcriber when state changed', () => {
+    it('will call subcriber when state changed', () => {
       let outerCounts = 0;
       const subscriber = jest.fn(
-        (state: TestState) => (outerCounts = state.counts),
+        (store: TestStore) => (outerCounts = store.state.counts),
       );
-      const publisher = makeStorePublisher<TestState>((set) => ({
-        counts: 2,
-        addCounts: (by?: number) => {
-          const toAdd = by ?? 0;
-          set((prev) => ({ counts: prev.counts + toAdd }));
+      const { subscribe, getStore } = makeStorePublisher<TestStore>((set) => ({
+        state: {
+          counts: 2,
+        },
+        actions: {
+          addCounts: (by?: number) => {
+            const toAdd = by ?? 0;
+            set((prev) => ({ counts: prev.counts + toAdd }));
+          },
         },
       }));
-      publisher.subscribe(subscriber);
+      subscribe(subscriber);
 
-      expect(publisher.getState().counts).toEqual(2);
+      expect(getStore().state.counts).toEqual(2);
 
-      publisher.getState().addCounts();
-      expect(publisher.getState().counts).toEqual(2);
+      getStore().actions.addCounts(); // state doesn't change
+      expect(getStore().state.counts).toEqual(2);
       expect(subscriber).not.toBeCalled();
 
-      publisher.getState().addCounts(2);
-      expect(publisher.getState().counts).toEqual(4);
+      getStore().actions.addCounts(2);
+      expect(getStore().state.counts).toEqual(4);
       expect(outerCounts).toEqual(4);
+    });
+
+    it('will unsubscribe subcriber', () => {
+      const subscriber = jest.fn();
+      const { subscribe, getStore } = makeStorePublisher<TestStore>((set) => ({
+        state: {
+          counts: 2,
+        },
+        actions: {
+          addCounts: () => {
+            set((prev) => ({ counts: prev.counts + 2 }));
+          },
+        },
+      }));
+      const unsubscribe = subscribe(subscriber);
+
+      expect(getStore().state.counts).toEqual(2);
+
+      getStore().actions.addCounts();
+      expect(getStore().state.counts).toEqual(4);
+      expect(subscriber).toHaveBeenCalledTimes(1);
+
+      unsubscribe();
+
+      getStore().actions.addCounts();
+      expect(getStore().state.counts).toEqual(6);
+      expect(subscriber).toHaveBeenCalledTimes(1);
     });
   });
 });

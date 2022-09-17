@@ -1,3 +1,4 @@
+//shallow comparison
 const isEqual = <T>(objA: T, objB: T) => {
   if (Object.is(objA, objB)) return true;
   if (
