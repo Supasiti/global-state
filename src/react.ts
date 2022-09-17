@@ -11,9 +11,9 @@ const makeStoreHook = <TStore extends StoreTemplate>(
 ) => {
   const store = makeStore(config);
 
-  // function useStore(): TStore;
-  // function useStore<TSlice>(selector: (from: TStore) => TSlice): TSlice;
-  const useStore = <TSlice>(selector?: (from: TStore) => TSlice) => {
+  function useStore(): TStore;
+  function useStore<TSlice>(selector: (from: TStore) => TSlice): TSlice;
+  function useStore<TSlice>(selector?: (from: TStore) => TSlice) {
     const select = useCallback(
       (from: TStore) => (selector ? selector(from) : from),
       [selector],
@@ -24,7 +24,7 @@ const makeStoreHook = <TStore extends StoreTemplate>(
     );
 
     return state;
-  };
+  }
 
   return useStore;
 };

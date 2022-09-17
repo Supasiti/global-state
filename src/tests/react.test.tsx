@@ -58,13 +58,18 @@ describe('makeStoreHook', () => {
       },
     }));
 
-    const { result } = renderHook(() => useStore((s) => s.state.counts));
-    expect(result.current.state.counts).toEqual(2);
+    const { result: counts } = renderHook(() =>
+      useStore((s) => s.state.counts),
+    );
+    const { result: addCounts } = renderHook(() =>
+      useStore((s) => s.actions.addCounts),
+    );
+    expect(counts.current).toEqual(2);
 
     await act(() => {
-      result.current.actions.addCounts();
+      addCounts.current();
     });
 
-    expect(result.current.state.counts).toEqual(5);
+    expect(counts.current).toEqual(5);
   });
 });
